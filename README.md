@@ -82,7 +82,9 @@ Both sides follow the same rule, so only the lengths need to be shared.
 
 > Compress with canonical Huffman so no tree is sent, then lock the result with a password-derived AES-256-GCM key.
 
-## Getting started
+Live Link - [https://byazmain.github.io/Huffman-Project-version-2/]
+
+
 
 <!-- Add your language, dependencies, install steps and run commands here. -->
 
