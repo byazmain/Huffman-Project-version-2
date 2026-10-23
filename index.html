@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Secure Huffman: Encode &amp; Decode</title>
+<script src="https://cdn.jsdelivr.net/npm/scrypt-js@3.0.1/scrypt.js"></script>
+<style>
+:root{--bg:#0f1115;--panel:#171a21;--p2:#1e222b;--line:#2f3542;--text:#e8eaed;--muted:#9aa3b2;--acc:#6ee7b7;--acc2:#60a5fa;--bad:#f87171;--mono:ui-monospace,SFMono-Regular,Consolas,Menlo,monospace;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1115;--panel:#171a21;--p2:#1e222b;--line:#2f3542;--text:#e8eaed;--muted:#9aa3b2;--acc:#6ee7b7;--acc2:#60a5fa;--bad:#f87171}}
+@media(prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#f5f6f8;--panel:#fff;--p2:#f0f1f4;--line:#cfd4dd;--text:#1a1d23;--muted:#5b6472;--acc:#047857;--acc2:#1d4ed8;--bad:#dc2626}}
+:root[data-theme="dark"]{--bg:#0f1115;--panel:#171a21;--p2:#1e222b;--line:#2f3542;--text:#e8eaed;--muted:#9aa3b2;--acc:#6ee7b7;--acc2:#60a5fa;--bad:#f87171}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:900px;margin:0 auto;padding:26px 18px 60px}
+h1{font-size:1.45rem;margin:0 0 4px}.sub{color:var(--muted);font-size:.9rem;margin-bottom:20px}
+.tabs{display:flex;gap:6px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.tab{padding:10px 16px;cursor:pointer;color:var(--muted);font-weight:600;border-bottom:2px solid transparent}
+.tab.on{color:var(--acc);border-color:var(--acc)}.pane{display:none}.pane.on{display:block}
+label{display:block;font-size:.82rem;color:var(--muted);font-weight:600;margin:14px 0 6px}
+textarea,input[type=password],input[type=text]{width:100%;background:var(--p2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:11px 13px;font:inherit;font-family:var(--mono);font-size:.88rem}
+textarea{min-height:96px;resize:vertical}
+button{background:var(--acc);color:#04140d;border:0;border-radius:10px;padding:10px 18px;font-weight:700;cursor:pointer;margin:14px 8px 0 0}
+button.s{background:var(--p2);color:var(--text);border:1px solid var(--line);padding:6px 12px;margin:8px 6px 0 0;font-size:.8rem}
+button:disabled{opacity:.55;cursor:wait}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:16px}
+.card h3{margin:0 0 10px;font-size:.95rem}
+.kv{display:flex;justify-content:space-between;gap:12px;font-size:.85rem;margin:4px 0;word-break:break-all}.kv span:first-child{color:var(--muted);white-space:nowrap}
+.box{font-family:var(--mono);font-size:.78rem;background:var(--p2);border:1px solid var(--line);border-radius:10px;padding:11px;white-space:pre-wrap;word-break:break-all;max-height:200px;overflow:auto}
+.err{color:var(--bad);font-weight:600;margin-top:12px;font-size:.9rem}.ok{color:var(--acc);font-weight:600}
+.tw{overflow:auto;max-height:260px;border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-family:var(--mono);font-size:.78rem}th,td{padding:5px 9px;text-align:left;border-bottom:1px solid var(--line)}th{color:var(--muted);position:sticky;top:0;background:var(--panel)}
+.tree{overflow:auto;border:1px solid var(--line);border-radius:10px;background:var(--p2);padding:8px}
+.hint{color:var(--muted);font-size:.78rem;margin-top:6px}
+.steps{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}.steps span{font-size:.72rem;background:var(--p2);border:1px solid var(--line);border-radius:6px;padding:3px 8px;color:var(--acc2)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Secure Huffman: Encode &amp; Decode</h1>
+<div class="sub">Huffman compression + scrypt + AES-256-GCM. Everything runs in your browser; nothing is uploaded.</div>
+<div class="tabs"><div class="tab on" data-t="enc">Encode</div><div class="tab" data-t="dec">Decode</div></div>
+
+<div class="pane on" id="enc">
+ <label>Text to encode</label>
+ <textarea id="txt">Meet me at the library at 5pm. Bring the notes! Meet me at the library at 5pm. Bring the notes!</textarea>
+ <label>Password</label><input type="password" id="pw1" autocomplete="off" placeholder="Choose a strong password">
+ <button id="goE">Encode &amp; Encrypt</button><span class="hint" id="stE"></span>
+ <div class="err" id="erE"></div><div id="outE"></div>
+</div>
+
+<div class="pane" id="dec">
+ <label>Encrypted data (Base64 or binary)</label>
+ <textarea id="inp" placeholder="Paste the encoder output here…"></textarea>
+ <label>Password</label><input type="password" id="pw2" autocomplete="off" placeholder="Password used when encoding">
+ <button id="goD">Decrypt &amp; Decode</button><span class="hint" id="stD"></span>
+ <div class="err" id="erD"></div><div id="outD"></div>
+</div>
+</div>
+
+<script>
+//CORE-START
+const enc=new TextEncoder(),dec=new TextDecoder('utf-8',{fatal:true});
+const hex=u=>[...u].map(b=>b.toString(16).padStart(2,'0')).join('');
+const toB64=u=>{let s='';for(const b of u)s+=String.fromCharCode(b);return btoa(s)};
+const fromB64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+const toBin=u=>[...u].map(b=>b.toString(2).padStart(8,'0')).join('');
+
+function codeLengths(data){
+  const freq=new Array(256).fill(0),L=new Array(256).fill(0);
+  for(const b of data)freq[b]++;
+  let items=[];freq.forEach((f,s)=>{if(f)items.push({f,t:s,s:[s]})});
+  if(items.length===1){L[items[0].s[0]]=1;return{L,freq}}
+  while(items.length>1){
+    items.sort((a,b)=>a.f-b.f||a.t-b.t);
+    const a=items.shift(),b=items.shift(),m=a.s.concat(b.s);
+    for(const s of m)L[s]++;
+    items.push({f:a.f+b.f,t:Math.min(a.t,b.t),s:m});
+  }
+  return{L,freq};
+}
+function canon(L){
+  const syms=[];L.forEach((l,s)=>{if(l)syms.push([l,s])});
+  syms.sort((x,y)=>x[0]-y[0]||x[1]-y[1]);
+  const codes={};let c=0n,prev=0;
+  for(const[l,s]of syms){c<<=BigInt(l-prev);codes[s]=c.toString(2).padStart(l,'0');c++;prev=l}
+  return codes;
+}
+function pack(data){
+  const{L,freq}=codeLengths(data),codes=canon(L);
+  let bits=[...data].map(b=>codes[b]).join('');const bitLen=bits.length;
+  bits+='0'.repeat((8-bits.length%8)%8);
+  const out=new Uint8Array(260+bits.length/8);
+  new DataView(out.buffer).setUint32(0,data.length);out.set(L,4);
+  for(let i=0;i<bits.length/8;i++)out[260+i]=parseInt(bits.substr(i*8,8),2);
+  return{out,L,freq,codes,bitLen};
+}
+function unpack(p){
+  if(p.length<260)throw new Error('Payload too short.');
+  const n=new DataView(p.buffer,p.byteOffset).getUint32(0),L=[...p.slice(4,260)],codes=canon(L);
+  const rev={};for(const s in codes)rev[codes[s]]=+s;
+  const out=new Uint8Array(n);let k=0,buf='';
+  outer:for(const byte of p.subarray(260))for(const bit of byte.toString(2).padStart(8,'0')){
+    if(k===n)break outer;
+    buf+=bit;
+    if(buf in rev){out[k++]=rev[buf];buf=''}else if(buf.length>256)throw new Error('Corrupt Huffman data.');
+  }
+  if(k!==n)throw new Error('Huffman data ended early.');
+  return{data:out,L,codes};
+}
+async function deriveKey(pw,salt){
+  const raw=await scrypt.scrypt(enc.encode(pw),salt,32768,8,1,32);
+  return crypto.subtle.importKey('raw',raw,'AES-GCM',false,['encrypt','decrypt']);
+}
+async function encryptText(text,pw){
+  const pk=pack(enc.encode(text)),salt=crypto.getRandomValues(new Uint8Array(16)),nonce=crypto.getRandomValues(new Uint8Array(12));
+  const key=await deriveKey(pw,salt);
+  const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv:nonce},key,pk.out));
+  const blob=new Uint8Array(28+ct.length);blob.set(salt);blob.set(nonce,16);blob.set(ct,28);
+  return{blob,salt,nonce,ct,pk,text};
+}
+async function decryptBlob(blob,pw){
+  if(blob.length<44)throw new Error('Data is too short to be valid.');
+  const key=await deriveKey(pw,blob.slice(0,16));
+  let payload;
+  try{payload=new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv:blob.slice(16,28)},key,blob.slice(28)))}
+  catch(e){const x=new Error('Authentication failed: the password is wrong or the data was modified.');x.auth=true;throw x}
+  const u=unpack(payload);
+  return{text:dec.decode(u.data),u,payload,salt:blob.slice(0,16),nonce:blob.slice(16,28)};
+}
+//CORE-END
+
+// ---------- Tree drawing ----------
+const symLabel=s=>s===32?'␣':s===10?'\\n':(s>32&&s<127)?String.fromCharCode(s):'0x'+s.toString(16).padStart(2,'0').toUpperCase();
+const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+function drawTree(codes,freq){
+  const syms=Object.keys(codes);if(!syms.length)return'<div class="hint">Empty text: no tree.</div>';
+  const root={};
+  for(const s of syms){let n=root;for(const b of codes[s])n=n[b]=n[b]||{};n.sym=+s}
+  const GX=38,GY=58;let leaf=0,maxD=0;
+  (function pos(n,d){
+    n.d=d;maxD=Math.max(maxD,d);const ch=['0','1'].filter(k=>n[k]);
+    if(!ch.length){n.x=leaf++*GX;return}
+    ch.forEach(k=>pos(n[k],d+1));n.x=ch.reduce((a,k)=>a+n[k].x,0)/ch.length;
+  })(root,0);
+  const W=Math.max(leaf*GX+30,120),H=(maxD+1)*GY+34;let ln='',nd='';
+  (function draw(n){
+    const x=n.x+20,y=n.d*GY+22;
+    for(const k of['0','1'])if(n[k]){
+      const c=n[k],cx=c.x+20,cy=c.d*GY+22;
+      ln+=`<line x1="${x}" y1="${y}" x2="${cx}" y2="${cy}" stroke="var(--line)" stroke-width="1.5"/><text x="${(x+cx)/2+(k==='0'?-7:7)}" y="${(y+cy)/2}" font-size="10" fill="var(--acc2)" text-anchor="middle">${k}</text>`;
+      draw(c);
+    }
+    if(n.sym!==undefined){
+      nd+=`<rect x="${x-15}" y="${y-11}" width="30" height="22" rx="6" fill="var(--panel)" stroke="var(--acc)"/><text x="${x}" y="${y+4}" font-size="${symLabel(n.sym).length>2?8:12}" fill="var(--text)" text-anchor="middle" font-family="monospace">${esc(symLabel(n.sym))}</text>`;
+      if(freq)nd+=`<text x="${x}" y="${y+25}" font-size="9" fill="var(--muted)" text-anchor="middle">×${freq[n.sym]}</text>`;
+    }else nd+=`<circle cx="${x}" cy="${y}" r="4" fill="var(--muted)"/>`;
+  })(root);
+  return`<div class="tree"><svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${ln}${nd}</svg></div><div class="hint">Left branch = 0, right branch = 1. Scroll sideways if the tree is wide.</div>`;
+}
+function codeTable(codes,freq){
+  const rows=Object.keys(codes).map(Number).sort((a,b)=>codes[a].length-codes[b].length||a-b)
+    .map(s=>`<tr><td>${esc(symLabel(s))}</td><td>${freq?freq[s]:'–'}</td><td>${codes[s].length}</td><td>${codes[s]}</td></tr>`).join('');
+  return`<div class="tw"><table><thead><tr><th>Byte</th><th>Freq</th><th>Len</th><th>Code</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+// ---------- UI ----------
+const $=id=>document.getElementById(id);
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab,.pane').forEach(x=>x.classList.remove('on'));
+  t.classList.add('on');$(t.dataset.t).classList.add('on');
+});
+const kv=(k,v)=>`<div class="kv"><span>${k}</span><span>${v}</span></div>`;
+const copy=t=>navigator.clipboard&&navigator.clipboard.writeText(t).catch(()=>{});
+
+$('goE').onclick=async()=>{
+  $('erE').textContent='';$('outE').innerHTML='';
+  const text=$('txt').value,pw=$('pw1').value;
+  if(!pw){$('erE').textContent='Enter a password.';return}
+  if(typeof scrypt==='undefined'){$('erE').textContent='The scrypt library failed to load. Check your connection and reload.';return}
+  $('goE').disabled=true;$('stE').textContent='Deriving key with scrypt…';
+  try{
+    const r=await encryptText(text,pw),b64=toB64(r.blob),bin=toBin(r.blob).replace(/(.{8})/g,'$1 ').trim();
+    $('outE').innerHTML=`
+    <div class="card"><h3>Pipeline</h3>
+      <div class="steps"><span>Text → UTF-8</span><span>Huffman</span><span>scrypt(password, salt)</span><span>AES-256-GCM</span><span>salt + nonce + ciphertext + tag</span></div>
+      ${kv('UTF-8 bytes',enc.encode(text).length)}${kv('Huffman bits',r.pk.bitLen)}
+      ${kv('Payload (4 + 256 + packed)',r.pk.out.length+' bytes')}
+      ${kv('Salt (16 B)',hex(r.salt))}${kv('Nonce (12 B)',hex(r.nonce))}
+      ${kv('Tag (16 B)',hex(r.ct.slice(-16)))}${kv('Final size',r.blob.length+' bytes')}
+      <div class="hint">The 260-byte header is a fixed cost, so very short text becomes larger. Compression pays off on longer text.</div></div>
+    <div class="card"><h3>Encrypted output</h3>
+      <button class="s" id="vB">Base64</button><button class="s" id="vN">Binary</button><button class="s" id="cp">Copy</button><button class="s" id="snd">Send to Decoder</button>
+      <div class="box" id="ob" style="margin-top:10px"></div></div>
+    <div class="card"><h3>Huffman tree</h3>${drawTree(r.pk.codes,r.pk.freq)}</div>
+    <div class="card"><h3>Code table</h3>${codeTable(r.pk.codes,r.pk.freq)}</div>`;
+    let cur=b64;const show=v=>{cur=v;$('ob').textContent=v};show(b64);
+    $('vB').onclick=()=>show(b64);$('vN').onclick=()=>show(bin);$('cp').onclick=()=>copy(cur);
+    $('snd').onclick=()=>{$('inp').value=b64;document.querySelector('[data-t=dec]').click()};
+  }catch(e){$('erE').textContent='Error: '+e.message}
+  $('goE').disabled=false;$('stE').textContent='';
+};
+
+$('goD').onclick=async()=>{
+  $('erD').textContent='';$('outD').innerHTML='';
+  const raw=$('inp').value.replace(/\s+/g,''),pw=$('pw2').value;
+  if(!raw){$('erD').textContent='Paste the encrypted data first.';return}
+  if(!pw){$('erD').textContent='Enter the password.';return}
+  if(typeof scrypt==='undefined'){$('erD').textContent='The scrypt library failed to load. Check your connection and reload.';return}
+  let blob;
+  try{
+    if(/^[01]+$/.test(raw)&&raw.length%8===0)blob=Uint8Array.from(raw.match(/.{8}/g),b=>parseInt(b,2));
+    else blob=fromB64(raw);
+  }catch(e){$('erD').textContent='Input is not valid Base64 or binary.';return}
+  $('goD').disabled=true;$('stD').textContent='Deriving key with scrypt…';
+  try{
+    const r=await decryptBlob(blob,pw);
+    $('outD').innerHTML=`
+    <div class="card"><h3 class="ok">✓ Authenticated and decrypted</h3>
+      ${kv('Salt',hex(r.salt))}${kv('Nonce',hex(r.nonce))}${kv('Payload',r.payload.length+' bytes')}
+      <label>Original text</label><div class="box" id="dt"></div></div>
+    <div class="card"><h3>Huffman tree (rebuilt from the code-length table)</h3>${drawTree(r.u.codes,null)}</div>
+    <div class="card"><h3>Code table</h3>${codeTable(r.u.codes,null)}</div>`;
+    $('dt').textContent=r.text;
+  }catch(e){$('erD').textContent=e.auth?'✗ '+e.message:'Error: '+e.message}
+  $('goD').disabled=false;$('stD').textContent='';
+};
+</script>
+</body>
+</html>
